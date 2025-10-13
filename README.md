@@ -1,4 +1,5 @@
 # BlazorGameQuest — Version 1
+Aissa MEHENNI / Matthieu FELICITE
 
 ## Objectif V1
 - Structurer la solution .NET (Client Blazor WASM, Web API placeholder, Shared models).
