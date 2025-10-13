@@ -1,0 +1,22 @@
+﻿@page "/new-adventure"
+@using SharedModels
+@using BlazorGame.Client.Pages.Components  <!-- POUR QUE <RoomCard /> SOIT TROUVÉ -->
+
+<h1>Nouvelle aventure</h1>
+<p>(Prototype V1 sans logique : aperçu d'une salle)</p>
+
+<RoomCard Room="staticRoom" OnChoiceSelected="HandleChoice" />
+
+@code {
+    private Room staticRoom = new Room
+    {
+        Title = "Salle 1",
+        Type = RoomType.Enemy,
+        Description = "Un gobelin apparaît. Que faites-vous ?"
+    };
+
+    private void HandleChoice(string choice)
+    {
+        Console.WriteLine($"[V1] Choix du joueur (non persistant): {choice}");
+    }
+}

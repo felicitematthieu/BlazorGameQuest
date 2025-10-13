@@ -1,0 +1,28 @@
+@using SharedModels
+
+<div class="room-card">
+    <h2>@Room.Title (@Room.Type)</h2>
+    <p>@Room.Description</p>
+
+    <div class="choices">
+        <!-- IMPORTANT : on utilise @onclick='...' (quotes simples) et/ou des constantes pour éviter les problèmes de guillemets -->
+        <button class="btn" @onclick='() => Choose(CombatChoice)'>Combattre</button>
+        <button class="btn" @onclick='() => Choose(FleeChoice)'>Fuir</button>
+        <button class="btn" @onclick='() => Choose(SearchChoice)'>Fouiller</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Room Room { get; set; } = new();
+    [Parameter] public EventCallback<string> OnChoiceSelected { get; set; }
+
+    // Constantes pour éviter les guillemets dans les attributs Razor
+    private const string CombatChoice = "Combattre";
+    private const string FleeChoice   = "Fuir";
+    private const string SearchChoice = "Fouiller";
+
+    private async Task Choose(string choice)
+    {
+        await OnChoiceSelected.InvokeAsync(choice);
+    }
+}
