@@ -9,6 +9,7 @@ Aissa MEHENNI / Matthieu FELICITE
 ## Lancer le client
 ```bash
 dotnet run --project BlazorGame.Client
+```
 
 ## Version 2 – Modélisation & Base de données
 - Modèles: Player, Admin, Dungeon, Room (projet ASTA.SharedModels)
