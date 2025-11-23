@@ -1,10 +1,10 @@
-using ASTA.WorldApi;                 // <= son propre namespace
-using ASTA.SharedModels;            
+using ASTA.WorldApi;
+using ASTA.WorldApi.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+// --- Configuration de la base de données ---
 var useInMemory = builder.Configuration.GetValue("UseInMemory", true);
 if (useInMemory)
 {
@@ -17,7 +17,11 @@ else
     builder.Services.AddDbContext<AstaDbContext>(o => o.UseNpgsql(cs));
 }
 
+// --- Enregistrement des services métier ---
+builder.Services.AddScoped<DungeonService>();
 
+// --- Configuration des controllers ---
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -30,59 +34,18 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 
 var app = builder.Build();
 
+// --- Configuration du pipeline HTTP ---
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors();
 
+// --- Redirection racine vers Swagger ---
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
+// --- Mapping des controllers ---
+app.MapControllers();
 
-var dungeons = app.MapGroup("/dungeons");
-
-
-dungeons.MapGet("/", async (AstaDbContext db)
-    => await db.Dungeons.Include(d => d.Rooms).AsNoTracking().ToListAsync());
-
-
-dungeons.MapGet("/{id:int}", async (int id, AstaDbContext db)
-    => await db.Dungeons.Include(d => d.Rooms).AsNoTracking().FirstOrDefaultAsync(d => d.Id == id) is { } d
-        ? Results.Ok(d) : Results.NotFound());
-
-
-dungeons.MapPost("/", async (Dungeon d, AstaDbContext db) =>
-{
-    var (ok, errors) = ValidationUtil.Validate(d);
-    if (!ok) return Results.ValidationProblem(errors);
-
-    db.Dungeons.Add(d);
-    await db.SaveChangesAsync();
-    return Results.Created($"/dungeons/{d.Id}", d);
-});
-
-
-dungeons.MapPost("/{id:int}/rooms", async (int id, Room r, AstaDbContext db) =>
-{
-    var (ok, errors) = ValidationUtil.Validate(r);
-    if (!ok) return Results.ValidationProblem(errors);
-
-    if (await db.Dungeons.FindAsync(id) is null) return Results.NotFound();
-    r.DungeonId = id;
-    db.Rooms.Add(r);
-    await db.SaveChangesAsync();
-    return Results.Created($"/dungeons/{id}/rooms/{r.Id}", r);
-});
-
-
-dungeons.MapDelete("/{id:int}", async (int id, AstaDbContext db) =>
-{
-    var d = await db.Dungeons.FindAsync(id);
-    if (d is null) return Results.NotFound();
-    db.Remove(d);
-    await db.SaveChangesAsync();
-    return Results.NoContent();
-});
-
-
+// --- Initialisation de la base de données ---
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AstaDbContext>();
@@ -90,3 +53,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Exposition pour les tests d'intégration (WebApplicationFactory)
+public partial class Program { }
+
