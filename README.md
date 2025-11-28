@@ -182,75 +182,75 @@ Rapport lcov disponible dans `ASTA/coverage/`. Intégrable avec services externe
 - **.NET 9 SDK** installé ([télécharger ici](https://dotnet.microsoft.com/download/dotnet/9.0))
 - Vérifier la version : `dotnet --version` (doit afficher 9.x.x)
 
-#### Étapes de lancement
+#### Démarrage rapide
 
-**1. Lancer GameApi** (port 5198)
+**Option 1 : Lancement en arrière-plan (recommandé)**
 ```bash
+# Terminal 1 : API
+cd ASTA/ASTA.GameApi && dotnet run &
+
+# Terminal 2 : Blazor
+cd BlazorGame.Client && dotnet run &
+```
+
+**Option 2 : Lancement dans des terminaux séparés**
+```bash
+# Terminal 1 : Démarrer l'API
 cd ASTA/ASTA.GameApi
 dotnet run
-```
-✅ Attendre le message : `Now listening on: http://localhost:5198`
+# Attendre "Now listening on: http://localhost:5198"
 
-**2. Lancer WorldApi** (port 5002) — **Nouveau terminal**
-```bash
-cd ASTA/ASTA.WorldApi
-dotnet run
-```
-✅ Attendre le message : `Now listening on: http://localhost:5002`
-
-**3. Lancer Client Blazor** (port 5109) — **Nouveau terminal**
-```bash
+# Terminal 2 : Démarrer Blazor (dans un nouveau terminal)
 cd BlazorGame.Client
 dotnet run
+# Attendre "Now listening on: http://localhost:5109"
 ```
-✅ Attendre le message : `Now listening on: http://localhost:5109`
 
-**4. Ouvrir l'application**
+**Accès aux interfaces**
 - **Interface de jeu** : http://localhost:5109
-- **Swagger GameApi** : http://localhost:5198/swagger
-- **Swagger WorldApi** : http://localhost:5002/swagger
+- **Admin Dashboard** : http://localhost:5109/admin
+- **Swagger API** : http://localhost:5198/swagger
+
+> **Note** : L'API doit être démarrée AVANT le client Blazor
 
 #### Troubleshooting
 
 **Erreur "port already in use"**
 ```bash
-# Trouver le processus utilisant le port (exemple 5198)
-lsof -i :5198
-# Tuer le processus
-kill -9 <PID>
+# Tuer tous les processus dotnet
+pkill -9 dotnet
+# Ou tuer spécifiquement par port
+lsof -ti:5198 | xargs kill -9
+lsof -ti:5109 | xargs kill -9
 ```
 
-**Erreur CORS lors de l'appel API**
-- Vérifier que les 3 services tournent bien sur leurs ports respectifs
-- Les ports 4200, 5173 et 5109 sont autorisés dans Program.cs
+**Erreur "connection refused" dans le navigateur**
+- Vérifier que l'API est bien démarrée : `curl http://localhost:5198/api/players`
+- Vérifier les logs de l'API dans le terminal
+- Redémarrer l'API puis Blazor
 
-**Erreur PostgreSQL "could not connect"**
-- Par défaut, l'application utilise **InMemory** (pas besoin de Docker)
-- Si vous avez modifié `appsettings.Development.json` pour utiliser PostgreSQL, lancer `docker compose up -d`
+**Le classement est vide**
+- Les aventures doivent être jouées **après** avoir démarré les services avec les dernières modifications
+- Vérifier qu'une aventure a un `PlayerId`: `curl http://localhost:5198/api/admin/adventures`
+- Si `playerId: null`, rejouer une partie complète
 
 **Les tests échouent**
 ```bash
-# Depuis la racine du projet
 cd ASTA
-dotnet test ASTA.sln
+dotnet test
 ```
-✅ Tous les tests doivent passer (16/16)
+✅ 43/43 tests doivent passer
 
 ### Tests & Couverture V3
 ```bash
-# Tous les tests (16 au total)
-dotnet test ASTA/ASTA.sln
-
-# Couverture de code avec XPlat Code Coverage
+# Tous les tests (38 au total)
 cd ASTA
-dotnet test ASTA.Tests/ASTA.Tests.csproj --collect:"XPlat Code Coverage" --results-directory ./TestResults
+dotnet test
 ```
 
 **Résultats couverture** :
-- **Lignes** : 39.2%
-- **Branches** : 25%
-
-*Note* : La couverture actuelle se concentre sur la logique métier critique (génération aventures, scoring, endpoints aventure). Les fichiers utilitaires (Seed, Validation, Swagger) ne sont pas couverts. Pour atteindre 80%, il faudrait ajouter des tests unitaires sur `Seed.cs`, `Validation.cs`, `SwaggerExamples.cs` et les helpers.
+- **Lignes** : 45.42%
+- **Branches** : 30.48%
 
 Tests inclus :
 - 3 tests Player (création, validation)
@@ -259,6 +259,175 @@ Tests inclus :
 - 2 tests ApiEndpoints (GameApi + WorldApi)
 - 4 tests AdventureGenerator (génération valide, scoring Enemy/Treasure)
 - 4 tests AdventureEndpoints (start, choices, get, list)
+- 10 tests ValidationUtil (validation Player, Dungeon, DataAnnotations)
+- 3 tests Seed (initialisation base de données)
+- 9 tests Services (PlayerService, DungeonService, AdventureService)
 
-**Total : 16 tests ✅**
+**Total : 38 tests ✅**
+
+## Version 4 – Administration & Classements
+
+### Fonctionnalités V4
+
+#### Backend - Endpoints Admin
+- **GET /api/admin/leaderboard** : Classement général des joueurs par score total
+  - Query param: `top` (nombre de joueurs, défaut 100)
+  - Retourne: liste triée par score décroissant avec statistiques
+  
+- **GET /api/admin/adventures** : Liste complète des parties avec filtres
+  - Query params: `playerId`, `status` (InProgress/Completed/Dead), `page`, `pageSize`
+  - Pagination intégrée
+  
+- **GET /api/admin/players** : Liste de tous les joueurs
+  - Utilise le service PlayerService avec pagination large (1000 joueurs max)
+  
+- **PUT /api/admin/players/{id}/status** : Activer/désactiver un joueur
+  - Body: `true` (actif) ou `false` (désactivé)
+  
+- **GET /api/admin/players/export** : Export CSV des joueurs
+  - Télécharge automatiquement un fichier CSV avec colonnes: Id, UserName, Level, IsActive, TotalScore, AdventureCount
+  
+- **GET /api/players/{id}/history** : Historique personnel d'un joueur
+  - Retourne toutes les aventures du joueur avec détails des salles
+
+#### Modèles mis à jour
+- **Player.IsActive** : Nouveau champ booléen (défaut `true`)
+  - Permet la désactivation de comptes sans suppression
+
+#### Frontend - Interfaces Admin Blazor
+
+**Dashboard Admin** (`/admin`)
+- Menu avec 4 tuiles cliquables:
+  - 👥 Gestion Joueurs → `/admin/players`
+  - 🏆 Classement Général → `/admin/leaderboard`
+  - 🗺️ Liste des Parties → `/admin/adventures`
+  - 🏠 Retour au Jeu → `/`
+
+**Gestion des Joueurs** (`/admin/players`)
+- Tableau complet avec colonnes: ID, Nom, Niveau, Statut, Score Total, Nombre de parties
+- Actions:
+  - Activer/Désactiver un joueur (bouton rouge/vert)
+  - Export CSV (bouton en haut)
+  - Lien vers historique personnel (clic sur nom)
+- Indicateurs visuels:
+  - Badge vert "Actif" / rouge "Désactivé"
+  - Ligne grisée pour joueurs désactivés
+
+**Classement Général** (`/admin/leaderboard`)
+- Top 50 joueurs affichés
+- Podium visuel: 🥇🥈🥉 pour les 3 premiers
+- Cartes colorées (or, argent, bronze) pour le podium
+- Statistiques affichées:
+  - Score Total cumulé (somme de toutes les parties)
+  - Meilleur Score d'une partie
+  - Ratio Parties complétées / Total
+- Indicateur "Désactivé" pour joueurs inactifs
+- **Important** : Les joueurs apparaissent uniquement s'ils ont des parties terminées (Completed ou Dead) avec un PlayerId valide
+
+**Liste des Parties** (`/admin/adventures`)
+- Filtres:
+  - Par ID joueur
+  - Par statut (InProgress/Completed/Dead)
+- Tableau avec colonnes: ID, Joueur, Score, Statut, Nb Salles, Début, Fin, Durée
+- Pagination (20 parties par page)
+- Badges colorés:
+  - Vert : Completed
+  - Rouge : Dead
+  - Orange : InProgress
+- Scores colorés (vert si positif, rouge si négatif)
+
+**Historique Joueur** (`/admin/players/{id}/history`)
+- Statistiques en haut:
+  - Parties Totales
+  - Victoires
+  - Score Total cumulé
+  - Meilleur Score
+- Liste chronologique des aventures avec:
+  - Score, statut, nombre de salles
+  - Durée de la partie
+  - Aperçu des 3 premières salles visitées
+
+### Tests V4
+
+**Tests AdminService ajoutés** :
+- `GetLeaderboard_ReturnsTopPlayersByScore` : Vérification tri par score
+- `GetPlayerHistory_ReturnsPlayerAdventures` : Historique personnel
+- `SetPlayerActiveStatus_UpdatesPlayerStatus` : Activation/désactivation
+- `ExportPlayersToCsv_GeneratesValidCsv` : Format CSV valide
+- `GetAllAdventures_FiltersCorrectly` : Filtres par joueur et statut
+
+**Total : 43 tests ✅** (vs 38 en V3)
+
+### Couverture de Code V4
+
+```bash
+cd ASTA
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+```
+
+**Résultats couverture V4** :
+- **Lignes** : 48.73% (+3.31% vs V3)
+- **Branches** : 41.4% (+10.92% vs V3)
+
+**Fichiers bien couverts** :
+- `AdventureGenerator.cs` : 87.75%
+- `ValidationUtil.cs` : 100%
+- `Seed.cs` : 85%
+- `AdminService.cs` : 65%
+- `PlayerService`, `DungeonService`, `AdventureService` : 60-70%
+- Controllers : 55-65%
+
+### Tester toute l'application V4
+
+#### 1. Tests unitaires automatisés
+```bash
+cd ASTA
+dotnet test
+# Résultat attendu: 43/43 tests ✅
+```
+
+#### 2. Tests manuels via Swagger
+Accéder à http://localhost:5198/swagger et tester :
+
+**Endpoints Admin** :
+- **GET** `/api/admin/leaderboard?top=10` → Classement des 10 meilleurs joueurs
+- **GET** `/api/admin/adventures?status=Completed&page=1&pageSize=20` → Parties terminées
+- **GET** `/api/admin/players` → Liste complète des joueurs
+- **PUT** `/api/admin/players/1/status` (Body: `false`) → Désactiver le joueur #1
+- **GET** `/api/admin/players/export` → Télécharger players.csv
+
+**Endpoints Joueur** :
+- **GET** `/api/players/1/history` → Historique des parties du joueur #1
+- **POST** `/api/adventures?playerId=1` → Démarrer nouvelle aventure
+- **POST** `/api/adventures/{id}/choices` (Body: `{ "Choice": "Combattre" }`) → Faire un choix
+
+#### 3. Tests UI Blazor
+Ouvrir http://localhost:5109 et naviguer :
+
+**Interface Joueur** :
+1. Page d'accueil → Cliquer "Nouvelle Aventure"
+2. Jouer une partie complète en faisant des choix
+3. Observer l'évolution du score et progression
+
+**Dashboard Admin** (http://localhost:5109/admin) :
+1. **Gestion Joueurs** (`/admin/players`)
+   - Vérifier affichage tableau avec stats
+   - Désactiver un joueur (bouton rouge)
+   - Exporter CSV
+   - Cliquer sur un nom pour voir l'historique
+
+2. **Classement Général** (`/admin/leaderboard`)
+   - Vérifier le podium (🥇🥈🥉)
+   - Observer les statistiques (Score Total, Meilleur Score, Ratio)
+
+3. **Liste des Parties** (`/admin/adventures`)
+   - Tester les filtres (par joueur, par statut)
+   - Vérifier la pagination
+   - Observer les badges de statut colorés
+
+4. **Historique Joueur** (`/admin/players/1/history`)
+   - Voir statistiques du joueur
+   - Liste chronologique des parties
+   - Détails des salles visitées
+
 

@@ -12,10 +12,12 @@ namespace ASTA.GameApi.Controllers;
 public class PlayersController : ControllerBase
 {
     private readonly PlayerService _playerService;
+    private readonly AdminService _adminService;
 
-    public PlayersController(PlayerService playerService)
+    public PlayersController(PlayerService playerService, AdminService adminService)
     {
         _playerService = playerService;
+        _adminService = adminService;
     }
 
     /// <summary>
@@ -101,5 +103,18 @@ public class PlayersController : ControllerBase
         var deleted = await _playerService.DeletePlayerAsync(id);
         if (!deleted) return NotFound();
         return NoContent();
+    }
+
+    /// <summary>
+    /// Récupère l'historique des aventures d'un joueur.
+    /// </summary>
+    /// <param name="id">Identifiant du joueur</param>
+    /// <returns>Liste des aventures du joueur</returns>
+    [HttpGet("{id:int}/history")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<Adventure>>> GetPlayerHistory(int id)
+    {
+        var history = await _adminService.GetPlayerHistoryAsync(id);
+        return Ok(history);
     }
 }

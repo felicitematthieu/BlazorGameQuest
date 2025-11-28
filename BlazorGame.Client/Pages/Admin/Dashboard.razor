@@ -1,0 +1,78 @@
+@page "/admin"
+@inject HttpClient Http
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<div class="container">
+    <h1>📊 Admin Dashboard</h1>
+
+    <div class="admin-menu">
+        <a href="/admin/players" class="menu-card">
+            <div class="icon">👥</div>
+            <h3>Gestion Joueurs</h3>
+            <p>Liste, activation/désactivation, export CSV</p>
+        </a>
+
+        <a href="/admin/leaderboard" class="menu-card">
+            <div class="icon">🏆</div>
+            <h3>Classement Général</h3>
+            <p>Top joueurs par score total</p>
+        </a>
+
+        <a href="/admin/adventures" class="menu-card">
+            <div class="icon">🗺️</div>
+            <h3>Liste des Parties</h3>
+            <p>Toutes les aventures avec filtres</p>
+        </a>
+
+        <a href="/" class="menu-card back">
+            <div class="icon">🏠</div>
+            <h3>Retour au Jeu</h3>
+            <p>Interface joueur</p>
+        </a>
+    </div>
+</div>
+
+<style>
+    .admin-menu {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .menu-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 30px;
+        border-radius: 15px;
+        text-decoration: none;
+        color: white;
+        transition: transform 0.3s, box-shadow 0.3s;
+        text-align: center;
+    }
+
+    .menu-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .menu-card.back {
+        background: linear-gradient(135deg, #64b5f6 0%, #1976d2 100%);
+    }
+
+    .menu-card .icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    .menu-card h3 {
+        margin: 10px 0;
+        font-size: 1.4rem;
+    }
+
+    .menu-card p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+</style>

@@ -1,0 +1,250 @@
+@page "/admin/adventures"
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Liste des Parties</PageTitle>
+
+<div class="container">
+    <div class="header">
+        <h1>🗺️ Liste des Parties</h1>
+        <a href="/admin" class="btn btn-secondary">← Retour</a>
+    </div>
+
+    <div class="filters">
+        <label>
+            Joueur:
+            <input type="number" @bind="filterPlayerId" placeholder="ID joueur" />
+        </label>
+        <label>
+            Statut:
+            <select @bind="filterStatus">
+                <option value="">Tous</option>
+                <option value="InProgress">En cours</option>
+                <option value="Completed">Terminée</option>
+                <option value="Dead">Mort</option>
+            </select>
+        </label>
+        <button class="btn btn-primary" @onclick="LoadAdventures">🔍 Filtrer</button>
+    </div>
+
+    @if (loading)
+    {
+        <p>Chargement...</p>
+    }
+    else if (adventures != null && adventures.Any())
+    {
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Joueur</th>
+                        <th>Score Total</th>
+                        <th>Statut</th>
+                        <th>Nb Salles</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                        <th>Durée</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var adv in adventures)
+                    {
+                        <tr>
+                            <td>@adv.Id</td>
+                            <td>@(adv.PlayerId?.ToString() ?? "Anonyme")</td>
+                            <td class="score @GetScoreClass(adv.TotalScore)">@adv.TotalScore</td>
+                            <td>
+                                <span class="badge @GetStatusClass(adv.Status)">@adv.Status</span>
+                            </td>
+                            <td>@adv.Rooms.Count</td>
+                            <td>@adv.StartTime.ToString("dd/MM/yy HH:mm")</td>
+                            <td>@(adv.EndTime?.ToString("dd/MM/yy HH:mm") ?? "-")</td>
+                            <td>@GetDuration(adv)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination">
+            <button class="btn btn-secondary" @onclick="PreviousPage" disabled="@(currentPage <= 1)">
+                ← Précédent
+            </button>
+            <span>Page @currentPage / @totalPages (@totalAdventures parties au total)</span>
+            <button class="btn btn-secondary" @onclick="NextPage" disabled="@(currentPage >= totalPages)">
+                Suivant →
+            </button>
+        </div>
+    }
+    else
+    {
+        <p>Aucune partie trouvée.</p>
+    }
+</div>
+
+@code {
+    private List<AdventureDto>? adventures;
+    private bool loading = true;
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalAdventures = 0;
+    private int totalPages => (int)Math.Ceiling(totalAdventures / (double)pageSize);
+
+    private int? filterPlayerId;
+    private string? filterStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAdventures();
+    }
+
+    private async Task LoadAdventures()
+    {
+        loading = true;
+
+        var url = $"http://localhost:5198/api/admin/adventures?page={currentPage}&pageSize={pageSize}";
+        if (filterPlayerId.HasValue)
+            url += $"&playerId={filterPlayerId}";
+        if (!string.IsNullOrWhiteSpace(filterStatus))
+            url += $"&status={filterStatus}";
+
+        var response = await Http.GetFromJsonAsync<AdventuresResponse>(url);
+        adventures = response?.Data;
+        totalAdventures = response?.Total ?? 0;
+
+        loading = false;
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadAdventures();
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadAdventures();
+        }
+    }
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Completed" => "status-completed",
+        "Dead" => "status-dead",
+        "InProgress" => "status-progress",
+        _ => ""
+    };
+
+    private string GetScoreClass(int score) => score > 0 ? "positive" : score < 0 ? "negative" : "";
+
+    private string GetDuration(AdventureDto adv)
+    {
+        if (adv.EndTime == null) return "-";
+        var duration = adv.EndTime.Value - adv.StartTime;
+        return $"{(int)duration.TotalMinutes}min";
+    }
+
+    class AdventuresResponse
+    {
+        public int Total { get; set; }
+        public List<AdventureDto>? Data { get; set; }
+    }
+
+    class AdventureDto
+    {
+        public int Id { get; set; }
+        public int? PlayerId { get; set; }
+        public int TotalScore { get; set; }
+        public string Status { get; set; } = "";
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public List<RoomDto> Rooms { get; set; } = new();
+    }
+
+    class RoomDto
+    {
+        public string RoomTitle { get; set; } = "";
+    }
+}
+
+<style>
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .filters {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .filters label {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-weight: 500;
+    }
+
+    .filters input, .filters select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .score.positive {
+        color: #4caf50;
+        font-weight: bold;
+    }
+
+    .score.negative {
+        color: #f44336;
+        font-weight: bold;
+    }
+
+    .badge.status-completed {
+        background-color: #4caf50;
+        color: white;
+    }
+
+    .badge.status-dead {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .badge.status-progress {
+        background-color: #ff9800;
+        color: white;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+</style>

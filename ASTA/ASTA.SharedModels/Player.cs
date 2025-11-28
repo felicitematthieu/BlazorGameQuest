@@ -23,4 +23,9 @@ public class Player
     /// </summary>
     [Range(1, 100)]
     public int Level { get; set; } = 1;
+
+    /// <summary>
+    /// Indique si le compte du joueur est actif.
+    /// </summary>
+    public bool IsActive { get; set; } = true;
 }
