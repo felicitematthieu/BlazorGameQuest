@@ -1,0 +1,237 @@
+@page "/admin/players"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Gestion Joueurs</PageTitle>
+
+<div class="container">
+    <div class="header">
+        <h1>👥 Gestion des Joueurs</h1>
+        <div>
+            <button class="btn btn-primary" @onclick="ExportPlayers">📥 Exporter CSV</button>
+            <a href="/admin" class="btn btn-secondary">← Retour</a>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <p>Chargement...</p>
+    }
+    else if (players != null)
+    {
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nom</th>
+                        <th>Niveau</th>
+                        <th>Statut</th>
+                        <th>Score Total</th>
+                        <th>Parties</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var player in players)
+                    {
+                        <tr class="@(player.IsActive ? "" : "inactive")">
+                            <td>@player.Id</td>
+                            <td>
+                                <a href="/admin/players/@player.Id/history">@player.UserName</a>
+                            </td>
+                            <td>@player.Level</td>
+                            <td>
+                                <span class="badge @(player.IsActive ? "active" : "inactive")">
+                                    @(player.IsActive ? "Actif" : "Désactivé")
+                                </span>
+                            </td>
+                            <td>@(GetPlayerStats(player.Id)?.TotalScore ?? 0)</td>
+                            <td>@(GetPlayerStats(player.Id)?.AdventureCount ?? 0)</td>
+                            <td>
+                                <button class="btn btn-sm @(player.IsActive ? "btn-danger" : "btn-success")"
+                                        @onclick="() => TogglePlayerStatus(player.Id, !player.IsActive)">
+                                    @(player.IsActive ? "Désactiver" : "Activer")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<PlayerDto>? players;
+    private Dictionary<int, PlayerStats>? statsDict;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlayers();
+    }
+
+    private async Task LoadPlayers()
+    {
+        loading = true;
+        var response = await Http.GetFromJsonAsync<PlayersResponse>("http://localhost:5198/api/admin/players");
+        players = response?.Data;
+
+        // Charger les stats des joueurs
+        if (players != null)
+        {
+            var adventuresResponse = await Http.GetFromJsonAsync<AdventuresResponse>("http://localhost:5198/api/admin/adventures?pageSize=1000");
+            if (adventuresResponse?.Data != null)
+            {
+                statsDict = adventuresResponse.Data
+                    .Where(a => a.PlayerId.HasValue)
+                    .GroupBy(a => a.PlayerId!.Value)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new PlayerStats
+                        {
+                            TotalScore = g.Sum(a => a.TotalScore),
+                            AdventureCount = g.Count()
+                        });
+            }
+        }
+
+        loading = false;
+    }
+
+    private PlayerStats? GetPlayerStats(int playerId)
+    {
+        return statsDict?.ContainsKey(playerId) == true ? statsDict[playerId] : null;
+    }
+
+    private async Task TogglePlayerStatus(int playerId, bool isActive)
+    {
+        var response = await Http.PutAsJsonAsync($"http://localhost:5198/api/admin/players/{playerId}/status", isActive);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadPlayers();
+        }
+    }
+
+    private async Task ExportPlayers()
+    {
+        await JS.InvokeVoidAsync("open", "http://localhost:5198/api/admin/players/export", "_blank");
+    }
+
+    class PlayersResponse
+    {
+        public List<PlayerDto>? Data { get; set; }
+    }
+
+    class AdventuresResponse
+    {
+        public List<AdventureDto>? Data { get; set; }
+    }
+
+    class PlayerDto
+    {
+        public int Id { get; set; }
+        public string UserName { get; set; } = "";
+        public int Level { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    class AdventureDto
+    {
+        public int Id { get; set; }
+        public int? PlayerId { get; set; }
+        public int TotalScore { get; set; }
+        public string Status { get; set; } = "";
+    }
+
+    class PlayerStats
+    {
+        public int TotalScore { get; set; }
+        public int AdventureCount { get; set; }
+    }
+}
+
+<style>
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .admin-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .admin-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .admin-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .admin-table tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    .admin-table tr.inactive {
+        opacity: 0.6;
+    }
+
+    .badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .badge.active {
+        background-color: #4caf50;
+        color: white;
+    }
+
+    .badge.inactive {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
+    .btn-success {
+        background-color: #4caf50;
+    }
+
+    .btn-success:hover {
+        background-color: #45a049;
+    }
+
+    .btn-danger {
+        background-color: #f44336;
+    }
+
+    .btn-danger:hover {
+        background-color: #da190b;
+    }
+</style>

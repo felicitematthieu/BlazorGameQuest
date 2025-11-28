@@ -1,7 +1,27 @@
 ﻿@page "/"
 
-@* Page d’accueil – présente le jeu et mène vers "Nouvelle aventure" *@
+@* Page d'accueil – présente le jeu et mène vers "Nouvelle aventure" *@
 <h1>Bienvenue dans BlazorGameQuest</h1>
-<p>Jeu d’aventure par salles. Faites des choix et maximisez votre score !</p>
+<p>Jeu d'aventure par salles. Faites des choix et maximisez votre score !</p>
 
-<a class="btn" href="/new-adventure">→ Nouvelle aventure</a>
+<div class="menu-buttons">
+    <a class="btn btn-primary" href="/new-adventure">→ Nouvelle aventure</a>
+    <a class="btn btn-admin" href="/admin">🔧 Admin Dashboard</a>
+</div>
+
+<style>
+    .menu-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .btn-admin {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    }
+
+    .btn-admin:hover {
+        background: linear-gradient(135deg, #ee5a6f 0%, #d84a5b 100%);
+    }
+</style>
+

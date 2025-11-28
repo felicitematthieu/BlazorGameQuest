@@ -21,13 +21,13 @@ public class AdventuresController : ControllerBase
     /// <summary>
     /// Démarre une nouvelle aventure.
     /// </summary>
-    /// <param name="playerId">Identifiant du joueur (optionnel)</param>
+    /// <param name="request">Requête contenant l'identifiant du joueur (optionnel)</param>
     /// <returns>Détails de l'aventure et première salle</returns>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<object>> StartAdventure([FromQuery] int? playerId = null)
+    public async Task<ActionResult<object>> StartAdventure([FromBody] StartAdventureRequest? request = null)
     {
-        var result = await _adventureService.StartNewAdventureAsync(playerId);
+        var result = await _adventureService.StartNewAdventureAsync(request?.PlayerId);
         return Ok(result);
     }
 
@@ -86,3 +86,8 @@ public class AdventuresController : ControllerBase
 /// DTO pour la soumission d'un choix.
 /// </summary>
 public record ChoiceRequest(string Choice);
+
+/// <summary>
+/// DTO pour démarrer une aventure.
+/// </summary>
+public record StartAdventureRequest(int? PlayerId);

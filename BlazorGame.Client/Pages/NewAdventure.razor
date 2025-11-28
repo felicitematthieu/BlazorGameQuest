@@ -68,7 +68,7 @@ else if (currentRoom != null)
         try
         {
             // Hardcoded playerId pour démo - en prod, il viendrait de l'authentification
-            var response = await Http.PostAsJsonAsync("/api/adventures", new { PlayerId = 1 });
+            var response = await Http.PostAsJsonAsync("http://localhost:5198/api/adventures", new { PlayerId = 1 });
             
             if (!response.IsSuccessStatusCode)
             {
@@ -114,7 +114,7 @@ else if (currentRoom != null)
         try
         {
             var response = await Http.PostAsJsonAsync(
-                $"/api/adventures/{adventureId}/choices",
+                $"http://localhost:5198/api/adventures/{adventureId}/choices",
                 new { Choice = choice }
             );
 

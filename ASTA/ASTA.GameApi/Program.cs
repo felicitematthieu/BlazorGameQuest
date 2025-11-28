@@ -21,6 +21,7 @@ else
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<DungeonService>();
 builder.Services.AddScoped<AdventureService>();
+builder.Services.AddScoped<AdminService>();
 
 // --- Configuration des controllers ---
 builder.Services.AddControllers();
